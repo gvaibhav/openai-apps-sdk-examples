@@ -46,6 +46,27 @@ pre-commit install
 
 > Using npm or yarn? Install the root dependencies with your preferred client and adjust the commands below accordingly.
 
+> Windows note (PowerShell): If `pre-commit` isn’t found, install it via pipx or a virtual environment:
+>
+> Option A – pipx (recommended):
+>
+> ```powershell
+> python -m pip install --user pipx
+> python -m pipx ensurepath
+> # Close and reopen PowerShell so PATH updates apply
+> pipx install pre-commit
+> pre-commit install
+> ```
+>
+> Option B – project venv:
+>
+> ```powershell
+> python -m venv .venv
+> .\.venv\Scripts\Activate.ps1
+> python -m pip install pre-commit
+> python -m pre_commit install
+> ```
+
 ## Build the components gallery
 
 The components are bundled into standalone assets that the MCP servers serve as reusable UI resources.
@@ -90,6 +111,18 @@ pnpm start
 
 ### Pizzaz Python server
 
+From the server folder (recommended):
+
+```bash
+cd pizzaz_server_python
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+uvicorn main:app --port 8000
+```
+
+Or from the repo root (requires that the root is on PYTHONPATH):
+
 ```bash
 python -m venv .venv
 source .venv/bin/activate
@@ -97,14 +130,21 @@ pip install -r pizzaz_server_python/requirements.txt
 uvicorn pizzaz_server_python.main:app --port 8000
 ```
 
+On Windows PowerShell, activate the venv with `./.venv/Scripts/Activate.ps1`.
+
 ### Solar system Python server
 
+From the server folder (recommended):
+
 ```bash
+cd solar-system_server_python
 python -m venv .venv
 source .venv/bin/activate
-pip install -r solar-system_server_python/requirements.txt
-uvicorn solar-system_server_python.main:app --port 8000
+pip install -r requirements.txt
+uvicorn main:app --port 8000
 ```
+
+On Windows PowerShell, activate the venv with `./.venv/Scripts/Activate.ps1`.
 
 You can reuse the same virtual environment for all Python servers—install the dependencies once and run whichever entry point you need.
 
@@ -143,7 +183,7 @@ You can use the cloud environment of your choice to deploy your MCP server.
 
 Include this in the environment variables:
 
-```
+```bash
 BASE_URL=https://your-server.com
 ```
 
