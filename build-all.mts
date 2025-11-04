@@ -21,6 +21,9 @@ const targets: string[] = [
   "pizzaz-carousel",
   "pizzaz-list",
   "pizzaz-albums",
+  "benefits-list",
+  "card-detail",
+  "comparison-table",
 ];
 const builtNames: string[] = [];
 
@@ -153,8 +156,14 @@ for (const out of outputs) {
   const dir = path.dirname(out);
   const ext = path.extname(out);
   const base = path.basename(out, ext);
-  const newName = path.join(dir, `${base}-${h}${ext}`);
 
+  // Skip if already hashed (ends with -<hash>)
+  if (base.endsWith(`-${h}`)) {
+    console.log(`${out} (already hashed, skipping)`);
+    continue;
+  }
+
+  const newName = path.join(dir, `${base}-${h}${ext}`);
   fs.renameSync(out, newName);
   console.log(`${out} -> ${newName}`);
 }

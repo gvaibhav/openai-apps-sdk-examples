@@ -2,7 +2,14 @@
 
 ## Overview
 
-Designing an MCP server for comparing credit card benefits (Amex vs Visa) that integrates with ChatGPT.
+**Production-Ready Credit Card Benefits MCP Server with OpenAI Apps SDK Widgets**
+
+This document describes the design and implementation of a Node.js MCP server that provides interactive credit card benefit analysis through 4 tools and 3 React widgets.
+
+**Status**: ✅ Implemented and tested
+**Implementation**: Node.js with @modelcontextprotocol/sdk v0.5.0
+**Widgets**: React 19 + Tailwind CSS 4.x
+**Dataset**: 5 premium travel credit cards
 
 ---
 
@@ -26,26 +33,38 @@ Rather than creating separate servers for Amex and Visa, create **ONE unified MC
 ### **Option 1: Single MCP Server (RECOMMENDED)**
 
 ```
-credit-cards-mcp-server/
-├── main.py                    # FastAPI app with MCP endpoints
-├── tools/
-│   ├── __init__.py
-│   ├── list_cards.py         # List available cards
-│   ├── get_card_benefits.py  # Get benefits for specific card
-│   ├── compare_cards.py      # Compare multiple cards
-│   └── search_benefits.py    # Search benefits by category
-├── data/
-│   ├── cards_data.py         # Card definitions
-│   ├── benefits_data.py      # Benefits database
-│   └── categories.py         # Benefit categories
-├── widgets/
-│   └── src/
-│       ├── card-detail/      # Single card view
-│       ├── comparison-table/ # Side-by-side comparison
-│       └── benefits-list/    # Benefits listing
-└── requirements.txt
+credit-cards_server_node/
+├── src/
+│   ├── server.ts              # MCP server with SSE transport
+│   └── data/
+│       ├── cards.ts           # Card dataset + utilities
+│       └── types.ts           # TypeScript type definitions
+├── package.json
+└── README.md
+
+src/credit-cards/
+└── types.ts                   # Shared payload types
+
+src/benefits-list/
+└── index.tsx                  # Card catalog widget
+
+src/card-detail/
+└── index.tsx                  # Individual card detail widget
+
+src/comparison-table/
+└── index.tsx                  # Comparison widget
+
+assets/                        # Build output (gitignored)
+├── benefits-list-2d2b.{html,js,css}
+├── card-detail-2d2b.{html,js,css}
+└── comparison-table-2d2b.{html,js,css}
 ```
 
+**Actual Implementation Highlights**:
+- Node.js server (not Python) for consistency with example patterns
+- SSE transport over HTTP (port 8000)
+- Static dataset (no external APIs)
+- Content-based hashing for widget assets (2d2b from package v5.0.16)
 ---
 
 ## Tool Boundaries
@@ -280,117 +299,207 @@ User sees rich UI with card comparison
 ### **Card Model**
 
 ```python
-from pydantic import BaseModel
-from typing import List, Optional
+// Actual TypeScript implementation in src/data/types.ts
 
-class Card(BaseModel):
-    id: str
-    name: str
-    issuer: str  # "amex", "visa", "mastercard"
-    annual_fee: float
-    category: str  # "travel", "cashback", "business"
-    image_url: Optional[str]
-    application_url: Optional[str]
+export interface CardRecord {
+  id: string;                    // "amex_platinum"
+  name: string;                  // "American Express Platinum Card"
+  shortName: string;             // "Amex Platinum"
+  issuer: string;                // "amex" | "chase" | "capital_one"
+  category: string;              // "premium-travel"
+  annualFee: number;             // 695
+  welcomeOffer: WelcomeOffer;
+  benefits: Benefit[];
+  earningRates: EarningRate[];
+  apr: APRInfo;
+  creditRequirement: string;
+  bestFor: string[];
+}
 
-class Benefit(BaseModel):
-    id: str
-    category: str  # "travel", "dining", "shopping", "protection"
-    name: str
-    description: str
-    estimated_value: float
-    terms: Optional[str]
-
-class CardWithBenefits(BaseModel):
-    card: Card
-    benefits: List[Benefit]
-    total_benefit_value: float
-```
-
----
-
-## MCP Server Implementation Structure
-
-### **main.py**
-
-```python
-from fastapi import FastAPI
-from fastapi.responses import StreamingResponse
-from tools.list_cards import list_cards_tool
-from tools.get_card_benefits import get_card_benefits_tool
-from tools.compare_cards import compare_cards_tool
-from tools.search_benefits import search_benefits_tool
-
-app = FastAPI()
-
-# MCP endpoints
-@app.get("/mcp")
-async def mcp_sse_stream():
-    """SSE stream endpoint for MCP protocol"""
-    # Implementation for SSE transport
-    pass
-
-@app.post("/mcp/messages")
-async def mcp_messages(sessionId: str):
-    """Message endpoint for tool calls"""
-    # Route to appropriate tool handler
-    pass
-
-# Tool registry
-TOOLS = {
-    "list_cards": list_cards_tool,
-    "get_card_benefits": get_card_benefits_tool,
-    "compare_cards": compare_cards_tool,
-    "search_benefits": search_benefits_tool
+export interface Benefit {
+  id: string;
+  type: "statement_credit" | "perk" | "protection";
+  category: string;              // "travel", "dining", "shopping"
+  name: string;
+  description: string;
+  estimatedValue: number;        // Annual dollar value
+  frequency?: "monthly" | "annual" | "one-time" | "ongoing";
+  highlight?: boolean;           // Featured benefit
+  tags?: string[];               // ["lounge", "priority_pass"]
 }
 ```
 
-### **tools/compare_cards.py**
+**Implemented Cards (5 Total)**:
+1. **American Express Platinum Card** - $695/year, $1,500 benefit value
+2. **American Express Gold Card** - $250/year, $580 benefit value
+3. **Chase Sapphire Reserve** - $550/year, $1,400 benefit value
+4. **Chase Sapphire Preferred** - $95/year, $450 benefit value
+5. **Capital One Venture X** - $395/year, $1,095 benefit value
 
-```python
-from typing import List
-from data.cards_data import get_card_by_id
-from data.benefits_data import get_benefits_for_card
+---
 
-async def compare_cards_tool(card_ids: List[str]) -> dict:
-    """Compare multiple credit cards"""
+## Implementation Details
 
-    # Fetch card data
-    cards = [get_card_by_id(card_id) for card_id in card_ids]
+### **Actual Tool Implementations**
 
-    # Fetch benefits for each card
-    comparison_data = []
-    for card in cards:
-        benefits = get_benefits_for_card(card.id)
-        comparison_data.append({
-            "card": card,
-            "benefits": benefits,
-            "total_value": sum(b.estimated_value for b in benefits)
-        })
+All four tools implemented in `credit-cards_server_node/src/server.ts`:
 
-    # Build comparison matrix
-    comparison_matrix = build_comparison_matrix(comparison_data)
+#### Tool 1: `list_cards`
+- **Handler**: `handleListCards()`
+- **Input Schema**: `{ issuer?: string, category?: string }`
+- **Widget**: `benefits-list` (ui://widget/benefits-list.html)
+- **Payload**: ListCardsPayload with stats, filters, cards array
 
-    # Return with widget metadata
-    return {
-        "content": [
-            {
-                "type": "text",
-                "text": f"Comparing {len(cards)} cards..."
-            }
-        ],
-        "_meta": {
-            "openai/outputTemplate": {
-                "type": "html",
-                "source": "http://localhost:4444/assets/comparison-table-[hash].html",
-                "data": comparison_matrix
-            }
-        }
-    }
+#### Tool 2: `get_card_benefits`
+- **Handler**: `handleGetCardBenefits()`
+- **Input Schema**: `{ card_id: string }` (required)
+- **Widget**: `card-detail` (ui://widget/card-detail.html)
+- **Payload**: CardDetailPayload with benefit groups, pros/cons
+
+#### Tool 3: `compare_cards`
+- **Handler**: `handleCompareCards()`
+- **Input Schema**: `{ card_ids: string[], comparison_type?: "all" | "benefits" | "fees" | "rewards" }`
+- **Widget**: `comparison-table` (ui://widget/comparison-table.html)
+- **Payload**: ComparisonPayload with ranked cards, metric rows, highlights
+
+#### Tool 4: `search_benefits`
+- **Handler**: `handleSearchBenefits()`
+- **Input Schema**: `{ benefit_type: string, min_value?: number }`
+- **Widget**: `benefits-list` (reused, differentiated by resultType)
+- **Payload**: ListCardsPayload with benefitMatches array
+
+### **Widget Metadata Pattern**
+
+Every tool response includes comprehensive Apps SDK metadata:
+
+```typescript
+function widgetMeta(widget: WidgetDefinition, overrides?: Record<string, unknown>) {
+  return {
+    "openai/outputTemplate": widget.templateUri,
+    "openai/toolInvocation/invoking": widget.invoking,
+    "openai/toolInvocation/invoked": widget.invoked,
+    "openai/widgetAccessible": true,
+    "openai/resultCanProduceWidget": true,
+    "openai.com/widget": {
+      uri: widget.templateUri,
+      mimeType: "text/html+skybridge",
+      text: widget.html,  // Embedded HTML for Inspector
+    },
+    ...overrides,
+  };
+}
+```
+
+**Critical Fields**:
+- `openai/outputTemplate`: URI for ChatGPT to match widget
+- `openai.com/widget`: Embedded HTML for MCPJam Inspector
+- `openai/widgetAccessible`: Enables widget rendering in ChatGPT
+- `openai/toolInvocation/*`: Status messages during tool execution
+
+### **Widget Implementation Patterns**
+
+All widgets follow this structure:
+
+```tsx
+import { createRoot } from "react-dom/client";
+import { useWidgetProps, useWidgetState, useOpenAiGlobal } from "../hooks";
+
+export default function App() {
+  const { payload, ready, error } = useWidgetProps<PayloadType>();
+  const [state, setState] = useWidgetState<StateType>("key", defaultValue);
+  const theme = useOpenAiGlobal("theme");
+
+  if (!ready || !payload) return <div>Loading...</div>;
+  if (error) return <div>Error: {error.message}</div>;
+
+  return (
+    <div className={theme === "dark" ? "dark" : ""}>
+      {/* Widget UI */}
+    </div>
+  );
+}
+
+// Critical: Mount React to DOM
+createRoot(document.getElementById("widget-name-root")!).render(<App />);
+```
+
+**Key Hooks**:
+- `useWidgetProps<T>()`: Reads `window.openai.toolOutput` (structured payload)
+- `useWidgetState<T>()`: Persists state across conversation turns
+- `useOpenAiGlobal()`: Reactive access to theme, locale, displayMode
+
+---
+
+## Build System
+
+### **Multi-Entry Widget Bundler**
+
+Implemented in `build-all.mts`:
+
+```bash
+# Build command
+pnpm run build
+```
+
+**Build Process**:
+1. Vite multi-entry build (`src/*/index.{tsx,jsx}`)
+2. Generate JS/CSS bundles
+3. Calculate hash from `package.json` version (SHA-256 → first 4 chars)
+4. Rename files: `benefits-list.js` → `benefits-list-2d2b.js`
+5. Generate HTML wrappers referencing hashed assets
+6. Output to `assets/` directory
+
+**Critical Configuration**:
+- `BASE_URL`: Controls asset URL in HTML (default: `http://localhost:4444`)
+- `targets` array: Must include widget folder names or they won't build
+- Double-hash prevention: Skips files already ending with current hash
+
+**Output Example**:
+```
+assets/
+├── benefits-list-2d2b.html    (widget HTML wrapper)
+├── benefits-list-2d2b.js      (196 kB → 61 kB gzip)
+├── benefits-list-2d2b.css     (49 kB)
+├── card-detail-2d2b.html
+├── card-detail-2d2b.js        (195 kB → 60 kB gzip)
+├── card-detail-2d2b.css
+├── comparison-table-2d2b.html
+├── comparison-table-2d2b.js   (193 kB → 60 kB gzip)
+└── comparison-table-2d2b.css
 ```
 
 ---
 
+## Testing
 ## Widget Design
+### **MCPJam Inspector**
+
+Tested with `@mcpjam/inspector@beta`:
+
+```bash
+# Terminal 1: Serve assets
+pnpm run serve  # → http://localhost:4444
+
+# Terminal 2: Start MCP server
+cd credit-cards_server_node
+pnpm start      # → http://localhost:8000
+
+# Terminal 3: Launch Inspector
+npx -y @mcpjam/inspector@beta
+```
+
+**Inspector Configuration**:
+- Transport: SSE
+- Endpoint: `http://localhost:8000/mcp`
+
+**Test Coverage**:
+- ✅ All 4 tools invokable from Inspector
+- ✅ Widgets render with real data
+- ✅ Card selection persists via `useWidgetState`
+- ✅ Tool chaining works (list → compare → detail)
+- ✅ Dark mode toggle functional
+- ✅ Responsive on mobile viewports
+
 
 ### **Widget 1: Card Detail**
 - Single card layout
