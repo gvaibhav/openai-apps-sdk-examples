@@ -4,6 +4,7 @@ import fg from "fast-glob";
 import path from "node:path";
 import fs from "node:fs";
 import tailwindcss from "@tailwindcss/vite";
+import { fileURLToPath } from 'node:url';
 
 function buildInputs() {
   const files = fg.sync("src/**/index.{tsx,jsx}", { dot: false });
@@ -207,6 +208,11 @@ export default defineConfig(({}) => ({
     react(),
     multiEntryDevEndpoints({ entries: inputs }),
   ],
+  resolve: {
+    alias: {
+      'hls.js': fileURLToPath(new URL('./src/shims/hls-shim.mjs', import.meta.url))
+    }
+  },
   cacheDir: "node_modules/.vite-react",
   server: {
     port: 4444,
