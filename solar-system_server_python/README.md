@@ -29,11 +29,11 @@ python main.py
 ```
 
 This boots a FastAPI app with uvicorn on `http://127.0.0.1:8000` (equivalently
-`uvicorn solar-system_server_python.main:app --port 8000`). The server exposes
-streaming endpoints compatible with the MCP Inspector and ChatGPT connectors:
+`uvicorn solar-system_server_python.main:app --port 8000`). The server uses
+Streamable HTTP transport (no SSE endpoint) and exposes streaming endpoints
+compatible with the MCP Inspector and ChatGPT connectors. For example:
 
-- `GET /mcp` provides the SSE stream.
-- `POST /mcp/messages?sessionId=...` receives follow-up messages for a session.
+- `POST /mcp/messages?sessionId=...` receives follow-up messages for a session with streaming responses.
 
 Each tool call returns a small JSON payload describing the requested planet plus
 metadata that embeds the solar-system widget, so the Apps SDK can render the 3D

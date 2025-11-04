@@ -28,10 +28,9 @@ pip install -r requirements.txt
 python main.py
 ```
 
-This boots a FastAPI app with uvicorn on `http://127.0.0.1:8000` (equivalently `uvicorn pizzaz_server_python.main:app --port 8000`). The endpoints mirror the Node demo:
+This boots a FastAPI app with uvicorn on `http://127.0.0.1:8000` (equivalently `uvicorn pizzaz_server_python.main:app --port 8000`). The server uses Streamable HTTP transport (no SSE endpoint) and exposes endpoints compatible with the MCP Inspector and ChatGPT connectors. For example:
 
-- `GET /mcp` exposes the SSE stream.
-- `POST /mcp/messages?sessionId=...` accepts follow-up messages for an active session.
+- `POST /mcp/messages?sessionId=...` accepts follow-up messages for an active session with streaming responses.
 
 Cross-origin requests are allowed so you can drive the server from local tooling or the MCP Inspector. Each tool returns structured content that echoes the requested topping plus metadata that points to the correct Skybridge widget shell, matching the original Pizzaz documentation.
 

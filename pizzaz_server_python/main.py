@@ -4,8 +4,8 @@ The server mirrors the Node example in this repository and exposes
 widget-backed tools that render the Pizzaz UI bundle. Each handler returns the
 HTML shell via an MCP resource and echoes the selected topping as structured
 content so the ChatGPT client can hydrate the widget. The module also wires the
-handlers into an HTTP/SSE stack so you can run the server with uvicorn on port
-8000, matching the Node transport behavior."""
+handlers into a Streamable HTTP stack (no SSE) so you can run the server with
+uvicorn on port 8000, matching the Node transport behavior."""
 
 from __future__ import annotations
 
